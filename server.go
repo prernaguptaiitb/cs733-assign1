@@ -184,6 +184,8 @@ func compareAndSwap(Connect net.Conn, reader *bufio.Reader, filename string, ver
 		Connect.Write([]byte("ERR_CMD_ERR\r\n"))
 		Connect.Close()
 	}
+	reader.ReadByte()
+	reader.ReadByte()
 	var isexpired bool
 	var expTime int
 	ver,err := strconv.Atoi(version)
@@ -293,7 +295,10 @@ func IsValidCmd( InpCommand string, Connect net.Conn, reader *bufio.Reader) {
 			ErrorInvalidCmd("delete", Connect)
 		}
 	} else {
-		ErrorInvalidCmd("default", Connect)
+//		ErrorInvalidCmd("default", Connect)
+		Connect.Write([]byte("ERR_CMD_ERR\r\n"))
+		Connect.Close()
+		return
 	}
 }
 
