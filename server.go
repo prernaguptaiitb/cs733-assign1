@@ -45,7 +45,7 @@ func ErrorInvalidCmd(cmd string, Connect net.Conn){
 }
 
 func WriteFile(Connect net.Conn, filename string, noBytes string, expiryTime string) {
-//	fmt.Println("In write")
+	fmt.Println("In write")
 	var isexpired bool
 	var expTime int
 	numBytes,err1 := strconv.Atoi(noBytes)
@@ -54,6 +54,7 @@ func WriteFile(Connect net.Conn, filename string, noBytes string, expiryTime str
 		Connect.Write([]byte("ERR_CMD_ERR\r\n"))
 		Connect.Close()
 	}
+	fmt.Println(numBytes)
 	if expiryTime == "NIL" {
 		expTime=0
 		isexpired = false
@@ -68,14 +69,26 @@ func WriteFile(Connect net.Conn, filename string, noBytes string, expiryTime str
 			return
 		}
 	}
-	buf := make([]byte, numBytes)
+	var err3 error
 	reader := bufio.NewReader(Connect)
-	_, err := io.ReadFull(reader, buf)
-	if err !=nil {
-		log.Println(err)
-		Connect.Write([]byte("ERR_CMD_ERR\r\n"))
-		Connect.Close()
+	buf := make([]byte, numBytes)
+	for i := 0; i < numBytes; i++ {
+		buf[i],err3=reader.ReadByte()
+		if err3!=nil {
+			log.Println(err3)
+			Connect.Write([]byte("ERR_CMD_ERR\r\n"))
+			Connect.Close()
+		}
+	
 	}
+//	reader := bufio.NewReader(Connect)
+//	_, err := io.ReadFull(reader, buf)
+//	if err !=nil {
+//		log.Println(err)
+//		Connect.Write([]byte("ERR_CMD_ERR\r\n"))
+//		Connect.Close()
+//	}
+	fmt.Println(buf)
 /*	 _, err = reader.ReadByte()
 	 if err !=nil {
 		log.Println(err)
@@ -255,7 +268,7 @@ func IsValidCmd( InpCommand string, Connect net.Conn) {
 		}
 	} else if tokenizedCmd[0]=="read" {
 		if l==2 {
-			readFile(Connect, tokenizedCmd[1]) 
+						readFile(Connect, tokenizedCmd[1]) 
 		} else{
 			ErrorInvalidCmd("read", Connect)
 		}
@@ -283,13 +296,14 @@ func IsValidCmd( InpCommand string, Connect net.Conn) {
 
 func handleThisClient(Connect net.Conn){
 	for{
-		msg_rec,err := bufio.NewReader(Connect).ReadString('\n')
+
+		msg_rec,_,err := bufio.NewReader(Connect).ReadLine()
 		if err != nil {
 			log.Println(err)
 			Connect.Close()
 			break
 		}
-//		fmt.Print(string(msg_rec))
+		fmt.Print(string(msg_rec))
 		IsValidCmd(string(msg_rec),Connect)
 	}
 }
