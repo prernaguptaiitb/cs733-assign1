@@ -44,7 +44,7 @@ func ErrorInvalidCmd(cmd string, Connect net.Conn){
 	Connect.Write([]byte(msg_send))
 }
 
-func WriteFile(Connect net.Conn, filename string, noBytes string, expiryTime string) {
+func WriteFile(Connect net.Conn, reader *bufio.Reader, filename string, noBytes string, expiryTime string) {
 	fmt.Println("In write")
 	var isexpired bool
 	var expTime int
@@ -69,26 +69,28 @@ func WriteFile(Connect net.Conn, filename string, noBytes string, expiryTime str
 			return
 		}
 	}
-	var err3 error
-	reader := bufio.NewReader(Connect)
+//	var err3 error
+
 	buf := make([]byte, numBytes)
-	for i := 0; i < numBytes; i++ {
-		buf[i],err3=reader.ReadByte()
-		if err3!=nil {
-			log.Println(err3)
-			Connect.Write([]byte("ERR_CMD_ERR\r\n"))
-			Connect.Close()
-		}
-	
-	}
-//	reader := bufio.NewReader(Connect)
-//	_, err := io.ReadFull(reader, buf)
-//	if err !=nil {
-//		log.Println(err)
-//		Connect.Write([]byte("ERR_CMD_ERR\r\n"))
-//		Connect.Close()
+//	for i := 0; i < numBytes; i++ {
+//		buf[i],err3=reader.ReadByte()
+//		if err3!=nil {
+//			log.Println(err3)
+//			Connect.Write([]byte("ERR_CMD_ERR\r\n"))
+//			Connect.Close()
+//		}
 //	}
-	fmt.Println(buf)
+//	reader.ReadByte()
+//	reader.ReadByte()
+	_, err := io.ReadFull(reader, buf)
+	if err !=nil {
+		log.Println(err)
+		Connect.Write([]byte("ERR_CMD_ERR\r\n"))
+		Connect.Close()
+	}
+	fmt.Println("Content : "+string(buf))
+	reader.ReadByte()
+	reader.ReadByte()
 /*	 _, err = reader.ReadByte()
 	 if err !=nil {
 		log.Println(err)
@@ -165,7 +167,7 @@ func readFile(Connect net.Conn, filename string){
 	}
 }
 
-func compareAndSwap(Connect net.Conn, filename string, version string, noBytes string, expiryTime string){
+func compareAndSwap(Connect net.Conn, reader *bufio.Reader, filename string, version string, noBytes string, expiryTime string){
 //	fmt.Println("In cas")
 	numBytes, err := strconv.Atoi(noBytes)
 	if err!=nil{
@@ -175,7 +177,7 @@ func compareAndSwap(Connect net.Conn, filename string, version string, noBytes s
 		return
 	}
 	buf := make([]byte, numBytes)
-	reader := bufio.NewReader(Connect)
+//	reader := bufio.NewReader(Connect)
 	_, err1 := io.ReadFull(reader, buf)
 	if err1 !=nil {
 		log.Println(err1)
@@ -217,6 +219,7 @@ func compareAndSwap(Connect net.Conn, filename string, version string, noBytes s
 			return
 
 		}
+		versionNum := file.version
 		if(file.version==int64(ver)){
 			file.version+=1
 			file.numBytes=numBytes
@@ -229,10 +232,11 @@ func compareAndSwap(Connect net.Conn, filename string, version string, noBytes s
 				file.expTime=int64(expTime)															}
 			filemap[filename]=file
 			mapLock.Unlock()
-			Connect.Write([]byte("OK "+ fmt.Sprintf("%v", file.version)+ "\r\n"))
+			Connect.Write([]byte("OK "+ fmt.Sprintf("%v", versionNum+1)+ "\r\n"))
 		}else{
+			versionnum := file.version
 			mapLock.Unlock()
-			Connect.Write([]byte("ERR_VERSION\r\n"))
+			Connect.Write([]byte("ERR_VERSION "+ fmt.Sprintf("%v", versionnum) +" \r\n"))
 //			Connect.Close()
 			return
 		}
@@ -253,16 +257,16 @@ func deleteFile(Connect net.Conn, filename string){
 	}
 }
 
-func IsValidCmd( InpCommand string, Connect net.Conn) {
+func IsValidCmd( InpCommand string, Connect net.Conn, reader *bufio.Reader) {
 	tokenizedCmd := strings.Fields(InpCommand)
 	l := len(tokenizedCmd)
 	if l==0 {
 		ErrorInvalidCmd("default", Connect)
 	}else if tokenizedCmd[0] == "write" {
 		if l==3 {
-			WriteFile( Connect , tokenizedCmd[1], tokenizedCmd[2], "NIL")
+			WriteFile( Connect , reader, tokenizedCmd[1], tokenizedCmd[2], "NIL")
 		} else if l==4 {
-			WriteFile( Connect , tokenizedCmd[1], tokenizedCmd[2], tokenizedCmd[3])
+			WriteFile( Connect , reader, tokenizedCmd[1], tokenizedCmd[2], tokenizedCmd[3])
 		} else {
 			ErrorInvalidCmd("write", Connect)
 		}
@@ -275,9 +279,9 @@ func IsValidCmd( InpCommand string, Connect net.Conn) {
 
 	} else if tokenizedCmd[0] == "cas" {
 		if l==4 {
-			compareAndSwap(Connect, tokenizedCmd[1], tokenizedCmd[2], tokenizedCmd[3],"NIL")
+			compareAndSwap(Connect, reader, tokenizedCmd[1], tokenizedCmd[2], tokenizedCmd[3],"NIL")
 		}else if l==5{
-			compareAndSwap(Connect, tokenizedCmd[1], tokenizedCmd[2], tokenizedCmd[3], tokenizedCmd[4])
+			compareAndSwap(Connect, reader, tokenizedCmd[1], tokenizedCmd[2], tokenizedCmd[3], tokenizedCmd[4])
 		}else{
 			ErrorInvalidCmd("cas", Connect)
 		}
@@ -295,16 +299,16 @@ func IsValidCmd( InpCommand string, Connect net.Conn) {
 
 
 func handleThisClient(Connect net.Conn){
+	reader := bufio.NewReader(Connect)
 	for{
-
-		msg_rec,_,err := bufio.NewReader(Connect).ReadLine()
+		msg_rec,_,err := reader.ReadLine()
 		if err != nil {
 			log.Println(err)
 			Connect.Close()
 			break
 		}
-		fmt.Print(string(msg_rec))
-		IsValidCmd(string(msg_rec),Connect)
+		fmt.Print("Command:"+string(msg_rec))
+		IsValidCmd(string(msg_rec),Connect,reader)
 	}
 }
 
