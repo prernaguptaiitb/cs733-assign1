@@ -29,6 +29,7 @@ var filemap = make(map[string]FileType)
 var tick int64 = 0
 var mapLock  sync.RWMutex
 
+
 func Timer(){
 	ticker := time.NewTicker(time.Second*1)
 	go func() {
@@ -45,7 +46,7 @@ func ErrorInvalidCmd(cmd string, Connect net.Conn){
 }
 
 func WriteFile(Connect net.Conn, reader *bufio.Reader, filename string, noBytes string, expiryTime string) {
-	fmt.Println("In write")
+//	fmt.Println("In write")
 	var isexpired bool
 	var expTime int
 	numBytes,err1 := strconv.Atoi(noBytes)
@@ -54,7 +55,7 @@ func WriteFile(Connect net.Conn, reader *bufio.Reader, filename string, noBytes 
 		Connect.Write([]byte("ERR_CMD_ERR\r\n"))
 		Connect.Close()
 	}
-	fmt.Println(numBytes)
+//	fmt.Println(numBytes)
 	if expiryTime == "NIL" {
 		expTime=0
 		isexpired = false
@@ -82,23 +83,52 @@ func WriteFile(Connect net.Conn, reader *bufio.Reader, filename string, noBytes 
 //	}
 //	reader.ReadByte()
 //	reader.ReadByte()
+
+	c := make(chan bool)
+	go func(){
+		select{
+			case <-time.After(20 * time.Second):
+				Connect.Write([]byte("ERR_INTERNAL\r\n"))
+				Connect.Close()
+				return
+			case <-c:
+//				fmt.Println("Successful\r\n")
+		}
+	}()
 	_, err := io.ReadFull(reader, buf)
 	if err !=nil {
 		log.Println(err)
 		Connect.Write([]byte("ERR_CMD_ERR\r\n"))
 		Connect.Close()
 	}
-	fmt.Println("Content : "+string(buf))
-	reader.ReadByte()
-	reader.ReadByte()
-/*	 _, err = reader.ReadByte()
-	 if err !=nil {
+//	fmt.Println("Content : "+string(buf))
+	n,err := reader.ReadByte()
+	if err !=nil {
 		log.Println(err)
 		Connect.Write([]byte("ERR_CMD_ERR\r\n"))
 		Connect.Close()
+		return
 	}
 
-	 _, err = reader.ReadByte()*/
+	if n!=byte('\r') {
+		Connect.Write([]byte("ERR_INTERNAL\r\n"))
+		Connect.Close()
+		return
+	}
+	m,err:=reader.ReadByte()
+	if err !=nil {
+		log.Println(err)
+		Connect.Write([]byte("ERR_CMD_ERR\r\n"))
+		Connect.Close()
+		return
+	}
+
+	if m!=byte('\n') {
+		Connect.Write([]byte("ERR_INTERNAL\r\n"))
+		Connect.Close()
+		return 
+	}
+	c <- true
 	mapLock.Lock()
 	file,ok := filemap[filename]
 	// check if file already present in map
@@ -178,14 +208,52 @@ func compareAndSwap(Connect net.Conn, reader *bufio.Reader, filename string, ver
 	}
 	buf := make([]byte, numBytes)
 //	reader := bufio.NewReader(Connect)
+	c := make(chan bool)
+	go func(){
+		select{
+			case <-time.After(20 * time.Second):
+				Connect.Write([]byte("ERR_INTERNAL\r\n"))
+				Connect.Close()
+				return
+			case <-c:
+//				fmt.Println("Successful\r\n")
+		}
+	}()
 	_, err1 := io.ReadFull(reader, buf)
 	if err1 !=nil {
 		log.Println(err1)
 		Connect.Write([]byte("ERR_CMD_ERR\r\n"))
 		Connect.Close()
+		return
 	}
-	reader.ReadByte()
-	reader.ReadByte()
+	n,err := reader.ReadByte()
+	if err !=nil {
+		log.Println(err)
+		Connect.Write([]byte("ERR_CMD_ERR\r\n"))
+		Connect.Close()
+		return
+	}
+
+	if n!=byte('\r') {
+		Connect.Write([]byte("ERR_INTERNAL\r\n"))
+		Connect.Close()
+		return
+	}
+	m,err:=reader.ReadByte()
+	if err !=nil {
+		log.Println(err)
+		Connect.Write([]byte("ERR_CMD_ERR\r\n"))
+		Connect.Close()
+		return
+	}
+
+	if m!=byte('\n') {
+		Connect.Write([]byte("ERR_INTERNAL\r\n"))
+		Connect.Close()
+		return
+	}
+	//reader.ReadByte()
+	//reader.ReadByte()
 	var isexpired bool
 	var expTime int
 	ver,err := strconv.Atoi(version)
@@ -312,7 +380,7 @@ func handleThisClient(Connect net.Conn){
 			Connect.Close()
 			break
 		}
-		fmt.Print("Command:"+string(msg_rec))
+//		fmt.Print("Command:"+string(msg_rec))
 		IsValidCmd(string(msg_rec),Connect,reader)
 	}
 }
