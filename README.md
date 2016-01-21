@@ -64,7 +64,7 @@ Server response (if successful)
 ```
 OK\r\n
 ```
-Server return following error messages :
+Server return following error messages : </br>
 1. ERR_VERSION <newversion>\r\n (the contents were not updated because of a
 version mismatch. The latest version is returned)
 2. ERR_FILE_NOT_FOUND\r\n (the filename doesn’t exist)
