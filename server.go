@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
-	//	"log"
+	"log"
 	"bufio"
 	"io"
 	"strconv"
@@ -331,7 +331,7 @@ func handleThisClient(Connect net.Conn) {
 	for {
 		msg_rec, _, err := reader.ReadLine()
 		if err != nil {
-			//	log.Println(err)
+			log.Println(err)
 			Connect.Close()
 			break
 		}
@@ -345,13 +345,15 @@ func serverMain() {
 	listen, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		//port not free
+		log.Println(err)
 		return
 		//log.Fatal(err)
 	}
 	for {
 		connect, err := listen.Accept()
 		if err != nil {
-			//log.Println(err)
+			log.Println(err)
+			return
 		}
 		go handleThisClient(connect)
 		//		time.Sleep(time.Second*20)
