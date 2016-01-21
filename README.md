@@ -65,10 +65,12 @@ Server response (if successful)
 OK\r\n
 ```
 Server return following error messages : </br>
+```
 * ERR_VERSION <newversion>\r\n (the contents were not updated because of a
 version mismatch. The latest version is returned)
 * ERR_FILE_NOT_FOUND\r\n (the filename doesn’t exist)
 * ERR_CMD_ERR\r\n (the command is not formatted correctly)
 * ERR_INTERNAL\r\n (any other error you wish to report that is not covered by the
 rest (optional))
+```
 
