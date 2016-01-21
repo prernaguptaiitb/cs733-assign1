@@ -1,5 +1,5 @@
 ## Assignment #1 - File server 
-Submitted by: Prerna Gupta, Roll: 143050021
+Submitted by: Prerna Gupta, Roll No: 143050021
 
 ## Introduction
 
@@ -12,8 +12,8 @@ Folder contains two files: server.go(containing server code) and concurrency_tes
 
 ### How to use?
 Run the server : "go run server.go" .
-Start the client : telnet localhost 8080
-You can start multiple clients.
+Start the client : telnet localhost 8080</br>
+You can start multiple clients.</br>
 
 ### Commands Support:
 * Write: create a file, or update the file’s contents if it already exists.
