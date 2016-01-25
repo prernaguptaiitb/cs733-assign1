@@ -1,14 +1,14 @@
 
 ## Assignment #1 - File server 
 
-Submitted by: Prerna Gupta
+Submitted by: Prerna Gupta</br>
 Roll No: 143050021
 
-Introduction
+##Introduction
 
 This assignment is to build a simple file server, with a simple read/write interface. The file contents are stored in memory. The server listens on port 8080. Concurrent operations by multiple clients is taken into consideration.
 
-Installation Instructions
+##Installation Instructions
 
 go get  github.com/prernaguptaiitb/cs733-assign1
 
