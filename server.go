@@ -331,7 +331,7 @@ func handleThisClient(Connect net.Conn) {
 	for {
 		msg_rec, _, err := reader.ReadLine()
 		if err != nil {
-			//	log.Println(err)
+			log.Println(err)
 			Connect.Close()
 			break
 		}
@@ -353,6 +353,7 @@ func serverMain() {
 		connect, err := listen.Accept()
 		if err != nil {
 			log.Println(err)
+			return
 		}
 		go handleThisClient(connect)
 		//		time.Sleep(time.Second*20)
