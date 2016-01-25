@@ -44,7 +44,7 @@ func TestTCPSimple(t *testing.T) {
 	expect(t, contents, scanner.Text())
 }
 
-// test syntax
+// Test syntax of write command
 func TestSyntax(t *testing.T) {
 	name := "hi.txt"
 	contents := "bye"
@@ -69,14 +69,12 @@ func TestSyntax(t *testing.T) {
 	scanner.Scan()
 	arr = strings.Split(scanner.Text(), " ")
 	expect(t, arr[0], "CONTENTS")
-	//expect(t, arr[1], fmt.Sprintf("%v", version)) // expect only accepts strings, convert int version to string
-	expect(t, arr[2], fmt.Sprintf("%v", len(contents)))
 	scanner.Scan()
 	expect(t, contents, scanner.Text())
 
 }
 
-//test delete
+//Test delete - write a file, read it, delete it, then attempt to read it again
 
 func TestDelete(t *testing.T) {
 	name := "f2.txt"
@@ -92,7 +90,6 @@ func TestDelete(t *testing.T) {
 	scanner.Scan()                  // read first line
 	resp := scanner.Text()          // extract the text from the buffer
 	arr := strings.Split(resp, " ") // split into OK and <version>
-
 	expect(t, arr[0], "OK")
 	version, err := strconv.ParseInt(arr[1], 10, 64) // parse version as number
 	if err != nil {
@@ -119,7 +116,7 @@ func TestDelete(t *testing.T) {
 }
 
 // Test behavior of system with 10 clients writing simultaneously to a file
-func TestConcurrency(t *testing.T) {
+func TestWriteConcurrency(t *testing.T) {
 	name := "f1.txt"
 	ch := make(chan bool)
 	for i := 1; i <= 10; i++ {
@@ -148,7 +145,7 @@ func TestConcurrency(t *testing.T) {
 	expectOptions(t, scanner.Text())
 }
 
-// Test behavior of cas and write together
+// Test behavior of cas and write together attempted by two clients
 func TestCasWrite(t *testing.T) {
 	conn, err := net.Dial("tcp", "localhost:8080")
 	if err != nil {
@@ -175,6 +172,7 @@ func TestCasWrite(t *testing.T) {
 	expect(t, scanner.Text(), "2")
 }
 
+// Test system behavior when 5 clients simultaneously attempt cas to a file 
 func TestCasConcurrency(t *testing.T) {
 	conn, err := net.Dial("tcp", "localhost:8080")
 	if err != nil {
@@ -207,6 +205,76 @@ func TestCasConcurrency(t *testing.T) {
 	expect(t, arr[0], "CONTENTS")
 	scanner.Scan()
 	expectConcCas(t, scanner.Text())
+}
+
+//Test read concurrency - 3 clients read the same value and then try to update. Their writes are concurrent.
+func TestReadConcurrency(t *testing.T) {
+	name := "f3.txt"
+	contents := "0"
+	exptime := 300000
+	conn, err := net.Dial("tcp", "localhost:8080")
+	if err != nil {
+		t.Error(err.Error()) // report error through testing framework
+	}
+	scanner := bufio.NewScanner(conn)
+	// Write a file
+	fmt.Fprintf(conn, "write %v %v %v\r\n%v\r\n", name, len(contents), exptime, contents)
+	scanner.Scan()                  // read first line
+	resp := scanner.Text()          // extract the text from the buffer
+	arr := strings.Split(resp, " ") // split into OK and <version>
+	expect(t, arr[0], "OK")
+	_, err = strconv.ParseInt(arr[1], 10, 64) // parse version as number
+	if err != nil {
+		t.Error("Non-numeric version found")
+	}
+	ch := make(chan bool)
+	for i := 1; i <= 3; i++ {
+		conn, err := net.Dial("tcp", "localhost:8080")
+		if err != nil {
+			t.Error(err.Error()) // report error through testing framework
+		}
+		go Readandwrite(conn, i, t, ch)
+	}
+	// wait for goroutines to finish
+	for x:=1; x<=3; x++ {
+		<-ch
+	}
+	//attempt read
+	fmt.Fprintf(conn, "read %v\r\n", name) // read the file
+	scanner.Scan()
+	arr = strings.Split(scanner.Text(), " ")
+	expect(t, arr[0], "CONTENTS")
+	expect(t, arr[1], fmt.Sprintf("4")) // expect only accepts strings, convert int version to string
+//	expect(t, arr[2], fmt.Sprintf("%v", len(contents)))
+	scanner.Scan()
+	expect(t, "5", scanner.Text())
+}
+
+
+//------------------------------------------------------------------------------------------------------------------------------
+func Readandwrite(conn net.Conn, i int, t *testing.T, ch chan bool){
+	name := "f3.txt"
+	scanner := bufio.NewScanner(conn)
+	fmt.Fprintf(conn, "read %v\r\n", name) // read the file
+	scanner.Scan()
+	arr := strings.Split(scanner.Text(), " ")
+	expect(t, arr[0], "CONTENTS")
+	scanner.Scan()
+	contents:=strings.Split(scanner.Text()," ")
+	val,_ := strconv.Atoi(contents[0])
+	time.Sleep(2 * time.Second) // sleep for 2 seconds
+	//now attempt write
+	content:= strconv.Itoa(val+5)
+	fmt.Fprintf(conn, "write %v %v\r\n%v\r\n", name, len(content),  content)
+	scanner.Scan()                  // read first line
+	resp := scanner.Text()          // extract the text from the buffer
+	arr = strings.Split(resp, " ") // split into OK and <version>
+	expect(t, arr[0], "OK")
+	_, err := strconv.ParseInt(arr[1], 10, 64) // parse version as number
+	if err != nil {
+		t.Error("Non-numeric version found")
+	}
+	ch<-true
 }
 
 // Useful testing function
