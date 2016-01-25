@@ -244,10 +244,26 @@ func TestReadConcurrency(t *testing.T) {
 	scanner.Scan()
 	arr = strings.Split(scanner.Text(), " ")
 	expect(t, arr[0], "CONTENTS")
-	expect(t, arr[1], fmt.Sprintf("4")) // expect only accepts strings, convert int version to string
-//	expect(t, arr[2], fmt.Sprintf("%v", len(contents)))
 	scanner.Scan()
 	expect(t, "5", scanner.Text())
+	for i := 1; i <= 3; i++ {
+		conn, err := net.Dial("tcp", "localhost:8080")
+		if err != nil {
+			t.Error(err.Error()) // report error through testing framework
+		}
+		go Readandwritediff(conn, i, t, ch)
+	}
+	// wait for goroutines to finish
+	for x:=1; x<=3; x++ {
+		<-ch
+	}
+	//attempt read
+	fmt.Fprintf(conn, "read %v\r\n", name) // read the file
+	scanner.Scan()
+	arr = strings.Split(scanner.Text(), " ")
+	expect(t, arr[0], "CONTENTS")
+	scanner.Scan()
+	expectwr(t,  scanner.Text())
 }
 
 
@@ -262,7 +278,7 @@ func Readandwrite(conn net.Conn, i int, t *testing.T, ch chan bool){
 	scanner.Scan()
 	contents:=strings.Split(scanner.Text()," ")
 	val,_ := strconv.Atoi(contents[0])
-	time.Sleep(2 * time.Second) // sleep for 2 seconds
+	time.Sleep(1 * time.Second) // sleep for 2 seconds
 	//now attempt write
 	content:= strconv.Itoa(val+5)
 	fmt.Fprintf(conn, "write %v %v\r\n%v\r\n", name, len(content),  content)
@@ -276,7 +292,30 @@ func Readandwrite(conn net.Conn, i int, t *testing.T, ch chan bool){
 	}
 	ch<-true
 }
-
+func Readandwritediff(conn net.Conn, i int, t *testing.T, ch chan bool){
+	name := "f3.txt"
+	scanner := bufio.NewScanner(conn)
+	fmt.Fprintf(conn, "read %v\r\n", name) // read the file
+	scanner.Scan()
+	arr := strings.Split(scanner.Text(), " ")
+	expect(t, arr[0], "CONTENTS")
+	scanner.Scan()
+	contents:=strings.Split(scanner.Text()," ")
+	val,_ := strconv.Atoi(contents[0])
+	time.Sleep(1 * time.Second) // sleep for 2 seconds
+	//now attempt write
+	content:= strconv.Itoa(val+(5*i))
+	fmt.Fprintf(conn, "write %v %v\r\n%v\r\n", name, len(content),  content)
+	scanner.Scan()                  // read first line
+	resp := scanner.Text()          // extract the text from the buffer
+	arr = strings.Split(resp, " ") // split into OK and <version>
+	expect(t, arr[0], "OK")
+	_, err := strconv.ParseInt(arr[1], 10, 64) // parse version as number
+	if err != nil {
+		t.Error("Non-numeric version found")
+	}
+	ch<-true
+}
 // Useful testing function
 func expect(t *testing.T, a string, b string) {
 	if a != b {
@@ -286,6 +325,18 @@ func expect(t *testing.T, a string, b string) {
 func expectOptions(t *testing.T, a string) {
 	check := false
 	for i := 101; i <= 110; i++ {
+		if strconv.Itoa(i) == a {
+			check = true
+		}
+	}
+	if check == false {
+		t.Error(fmt.Sprintf("Wrong Output, found %v", a))
+	}
+
+}
+func expectwr(t *testing.T, a string) {
+	check := false
+	for i := 10; i <= 20; i+=5 {
 		if strconv.Itoa(i) == a {
 			check = true
 		}
