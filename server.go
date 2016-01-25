@@ -331,11 +331,10 @@ func handleThisClient(Connect net.Conn) {
 	for {
 		msg_rec, _, err := reader.ReadLine()
 		if err != nil {
-			log.Println(err)
+	//		log.Println(err)
 			Connect.Close()
-			break
+			return
 		}
-		//		fmt.Print("Command:"+string(msg_rec))
 		IsValidCmd(string(msg_rec), Connect, reader)
 	}
 }
@@ -352,8 +351,8 @@ func serverMain() {
 	for {
 		connect, err := listen.Accept()
 		if err != nil {
-			log.Println(err)
-			return
+	//		log.Println(err)
+			continue
 		}
 		go handleThisClient(connect)
 		//		time.Sleep(time.Second*20)
